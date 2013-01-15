@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<!--
+	Google HTML5 slide template
+
+	Authors: Luke Mahé (code)
+					 Marcin Wichary (code and design)
+
+					 Dominic Mazzoni (browser compatibility)
+					 Charles Chen (ChromeVox support)
+
+	URL: http://code.google.com/p/html5slides/
+-->
+
+<html>
+	<head>
+		<title>Simple Black Box</title>
+
+		<meta charset="utf-8">
+		<!--<script src="http://html5slides.googlecode.com/svn/trunk/slides.js"></script>-->
+    	<script src="slides.js"></script><!-- local -->
+	</head>
+
+	<style>
+		/* Your individual styles here, or just use inline styles if that’s
+			 what you want. */
+
+
+	</style>
+
+	<body style="display: none">
+
+		<section class="slides layout-regular template-default">
+
+			<article>
+				<h1>Simple Black Box</h1>
+				<ul>
+                    <li>Dieter Plaetinck / Dieter_be</li>
+                    <li>new in NYC</li> <!-- moved a few weeks ago from Ghent, Belgium to come do backend stuff at Vimeo -->
+                    <li>Vimeo backend</li>
+				</ul>
+			</article>
+
+            <article>
+                <!-- Vimeo is a video sharing platform, so we have an daemon that handles incoming... -->
+                <h3>@Vimeo</h3>
+                <ul>
+                    <li>new upload server</li>
+                    <li>clients speak upload protocol over HTTP</li>
+                    <li>manages files on disk</li>
+                    <li>manages files in s3, swift (HTTP)</li>
+                    <li>metrics to statsd (UDP)</li>
+                </ul>
+                <div class="build">
+                <div>
+                <h3>in general:</h3>
+                <!-- so I have this daemon that... --> 
+                <ul>
+                    <li>messages/data i/o, multiple protocols</li>
+                    <li>creates files, does logging</li>
+                    <li>configuration that controls behavior</li>
+                </ul>
+            </div>
+            </article>
+
+            <article>
+                <h1>during development how do I test that a process/daemon *behaves* correctly?</h1>
+            </article>
+
+            <article>
+            
+                <!-- I think we need something that ... -->
+                <ul>
+                    <li>treat subject as black box (code agnostic.  this is not unit testing)</li>
+                    <li>send inputs, capture all possible output, assert on that</li>
+                    <li>assert on what OS tells you about the processes</li>
+                    <li>test case per scenario</li>
+                </ul>
+            </article>
+    
+            <article>
+                <ul>
+                    <li>E_NOTFOUND -> DIY</li>
+                    <li><b>Simple Black Box:</b><br/>
+                        shellscript tool/framework with plugins for common inputs and probes
+                    </li>
+                </ul>
+            </article>
+
+			<article>
+				<h3>A test run...</h3>
+                <section>
+                    <h3>test_init</h3>
+                    <p class="indent">set up sandbox (copy dir)</p>
+                </section>
+                <section>
+                    <h3>test_pre</h3>
+                    <p class="indent">
+                        <ul>
+                            <li>programatically modify configuration
+                            <br/><i>enable/disable settings
+                            <br/>set good/faulty params</i></li>
+                            <li>verify initial state</li>
+                        </ul>
+                    </p>
+                </section>
+            </article>
+            <article>
+					<section>
+						<h3>test_start</h3>
+                        <p class="indent" >
+                            <ul>
+                                <li>set up probes (internally: tcpdump, ngrep, ..)
+                                <i>
+                                <code>
+                                    <br/>set_http_probe swift "host $host_swift"
+                                    <br/>set_http_probe tag "-d lo host lo and port $port"
+                                </code>
+                                </i>
+                                </li>
+                                <li>launch process, capturing stdout,stderr,logs</li>
+                                <li>send input to process, http request, upload file, ...</li>
+                            </ul>
+                        </p>
+					</section>
+            </article>
+            <article>
+                <section>
+                    <h3>test_while</h3>
+                    <code>
+                    <br/>assert num_procs "$regex" "$num_procs" (pgrep)
+                    <br/>assert listening "tcp:8080" (lsof)
+                    </code>
+                </section>
+            </article>
+
+            <article>
+                <section>
+                <h3>test_stop</h3>
+                <code>
+                <br/>kill_gracefull "$process"
+                <br/><br/>remove_http_probe swift
+                <br/><br/>remove_http_probe tag
+                <br/><br/>assert num_procs "$regex" 0
+                <br/><br/>assert listening "tcp:8080" 0
+                </code>
+            </article>
+
+            <article>
+            <section>
+            <h3>test_post</h3>
+                <code>
+                <br/>assert object_md5sum $swift_object
+                <br/><br/>assert num_http_req swift 'GET /auth/v1.0' 1 1
+                <br/><br/>assert http_resp swift "^PUT /v1/AUTH HTTP" 202
+                <br/><br/>assert num_statsd_req lo 'upload.put:1|c' 1 1
+                <br/><br/>assert no_errors $output/stderr_* $log (grep)
+                </code>
+            </article>
+
+<!--
+inputs:
+http programatically
+http phantomjs
+shell => anything really
+-->
+
+
+            <article>
+                <img class='centered' style='height: 500px' src='images/screenshot-no-pause.png'>
+            </article>
+
+            <article>
+                <!-- but you can do more. there's a pause option which pauses SBB when an assertion fails so you can interact with the current environment -->
+                <h3>extra #1</h3>
+                <img class='centered' style='height: 500px' src='images/screenshot.png'>
+            </article>
+
+            <article>
+                <h3>extra #2</h3>
+                <!--imagine you have...-->
+                use case:
+                <ul>
+                    <li>N processes interacting, exchanging messages and acting upon them</li>
+                    <li>assertion fails, I want to <em>debug what went wrong</em></li>
+                </ul>
+                <!-- the problem is-->
+                <section class="build">
+                    <ul>
+                        <li>events are scattered across M logfiles from app+probes</li>
+                        <li><strong>need central chronological overview of all events</strong></li>
+                    </ul>
+                </section>
+            </article>
+
+            <article>
+                <h3>extra #2</h3>
+                    <p>
+                        <!-- logstash is ridiculously easy to run for even a short session for local events -->
+                       &rarr; logstash session to ingest all events during SBB session
+                        &rarr; <strong>logstash as a local debugging tool</strong>
+                    </p>
+                    <p></p>
+                <section class="build">
+                    <ul>
+                        <li>debug events for given testcase (<strong>distributed stacktrace</strong>)</li>
+                        <li>compare behavior across test cases</li>
+                    </ul>
+                </section>
+            </article>
+
+            <article>
+                <ul>
+                    <li><a href="https://github.com/vimeo/simple-black-box">github.com/vimeo/simple-black-box</a></li>
+                    <li><a href="https://github.com/vimeo">github.com/vimeo</a></li>
+                    <li><a href="https://github.com/Dieterbe">github.com/Dieterbe</a></li>
+                    <li><a href="http://dieter.plaetinck.be">dieter.plaetinck.be</a></li>
+                    <li><a href="https://twitter.com/Dieter_be">twitter.com/Dieter_be</a></li>
+                </ul>
+            </article>
+
+	</body>
+</html>
