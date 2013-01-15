@@ -45,7 +45,7 @@
                 <!-- Vimeo is a video sharing platform, so we have an daemon that handles incoming... -->
                 <h3>@Vimeo</h3>
                 <ul>
-                    <li>new upload server</li>
+                    <li>upload server</li>
                     <li>clients speak upload protocol over HTTP</li>
                     <li>manages files on disk</li>
                     <li>manages files in s3, swift (HTTP)</li>
@@ -153,9 +153,14 @@
                 <br/>assert object_md5sum $swift_object
                 <br/><br/>assert num_http_req swift 'GET /auth/v1.0' 1 1
                 <br/><br/>assert http_resp swift "^PUT /v1/AUTH HTTP" 202
-                <br/><br/>assert num_statsd_req lo 'upload.put:1|c' 1 1
-                <br/><br/>assert no_errors $output/stderr_* $log (grep)
                 </code>
+                <div class="build">
+                    <code>
+                        <br/>assert num_statsd_req lo 'upload.put:1|c' 1 1
+                    <br/><br/>assert no_errors $output/stderr_* $log (grep)
+                    <br/><br/>assert pattern "all is ok" $output/stdout
+                    </code>
+                </div>
             </article>
 
 <!--
